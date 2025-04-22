@@ -76,7 +76,7 @@ app.post('/admin/auth/logout', catchErrors(authed(async (req, res, email) => {
 })));
 
 /***************************************************************
-                      Game Functions
+                       Game Functions
 ***************************************************************/
 app.get('/admin/games', catchErrors(authed(async (req, res, email) => { 
   const games = await getGamesFromAdmin(email);
@@ -89,11 +89,13 @@ app.put('/admin/games', catchErrors(authed(async (req, res, email) => {
   }
 
   const { games } = req.body;
-
+  console.log(req.body);
+  
+  console.log(games);
   if (!Array.isArray(games)) {
     throw new InputError("Games must be an array");
   }
-  await updateGamesFromAdmin({ gamesArrayFromRequest: games, email });
+  await updateGamesFromAdmin({ gamesArray: games, email });
   return res.status(200).send({});
 })));
 
@@ -121,7 +123,7 @@ app.get('/admin/session/:sessionid/results', catchErrors(authed(async (req, res,
 })));
 
 /***************************************************************
-                      Play Functions
+                       Play Functions
 ***************************************************************/
 
 app.post('/play/join/:sessionid', catchErrors(async (req, res) => {
@@ -143,13 +145,13 @@ app.get('/play/:playerid/question', catchErrors(async (req, res) => {
 
 app.get('/play/:playerid/answer', catchErrors(async (req, res) => {
   const { playerid, } = req.params;
-  return res.status(200).send({ answers: await getAnswers(playerid), });
+  return res.status(200).send({ answerIds: await getAnswers(playerid), });
 }));
 
 app.put('/play/:playerid/answer', catchErrors(async (req, res) => {
   const { playerid, } = req.params;
-  const { answers, } = req.body;
-  await submitAnswers(playerid, answers);
+  const { answerIds, } = req.body;
+  await submitAnswers(playerid, answerIds);
   return res.status(200).send({});
 }));
 
@@ -159,7 +161,7 @@ app.get('/play/:playerid/results', catchErrors(async (req, res) => {
 }));
 
 /***************************************************************
-                      Running Server
+                       Running Server
 ***************************************************************/
 
 app.get('/', (req, res) => res.redirect('/docs'));

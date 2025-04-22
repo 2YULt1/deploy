@@ -3,13 +3,19 @@ import fs from "fs";
 import jwt from "jsonwebtoken";
 import { AccessError, InputError } from "./error";
 
+import {
+  gameQuestionGetCorrectAnswers,
+  gameQuestionGetDuration,
+  gameQuestionPublicReturn,
+} from "./custom";
+
 const lock = new AsyncLock();
 
 const JWT_SECRET = "llamallamaduck";
 const DATABASE_FILE = "./database.json";
 
 /***************************************************************
-                      State Management
+                       State Management
 ***************************************************************/
 
 let admins = {};
@@ -60,10 +66,11 @@ try {
 }
 
 /***************************************************************
-                      Helper Functions
+                       Helper Functions
 ***************************************************************/
 
 const newSessionId = (_) => generateId(Object.keys(sessions), 999999);
+const newGameId = (_) => generateId(Object.keys(games));
 const newPlayerId = (_) =>
   generateId(
     Object.keys(sessions).map((s) => Object.keys(sessions[s].players))
@@ -98,7 +105,7 @@ const generateId = (currentList, max = 999999999) => {
 };
 
 /***************************************************************
-                      Auth Functions
+                       Auth Functions
 ***************************************************************/
 
 export const getEmailFromAuthorization = (authorization) => {
@@ -146,7 +153,7 @@ export const register = (email, password, name) =>
   });
 
 /***************************************************************
-                      Game Functions
+                       Game Functions
 ***************************************************************/
 
 export const assertOwnsGame = (email, gameId) =>
@@ -162,36 +169,34 @@ export const assertOwnsGame = (email, gameId) =>
 
 export const getGamesFromAdmin = (email) =>
   gameLock((resolve, reject) => {
-    const filteredGames = Object.keys(games)
-      .filter((key) => games[key].owner === email)
-      .map((key) => {
-        const game = games[key] || {};
-        return {
-          ...(game || {}),
+    resolve(
+      Object.keys(games)
+        .filter((key) => games[key].owner === email)
+        .map((key) => ({
           id: parseInt(key, 10),
+          createdAt: games[key].createdAt,
+          name: games[key].name,
+          thumbnail: games[key].thumbnail,
+          owner: games[key].owner,
           active: getActiveSessionIdFromGameId(key),
           oldSessions: getInactiveSessionsIdFromGameId(key),
-        };
-      });
-    resolve(filteredGames);
+        }))
+    );
   });
 
-export const updateGamesFromAdmin = ({ gamesArrayFromRequest, email }) =>
+export const updateGamesFromAdmin = ({ gamesArray, email }) =>
   gameLock((resolve, reject) => {
     try {
-      // Get all existing game IDs owned by other admins
-      const otherAdminGameIds = Object.keys(games).filter(
-        (gameId) => games[gameId].owner !== email
-      );
-
       // Verify all games in array belong to admin
-      for (const gameFromRequest of gamesArrayFromRequest) {
-        if (!gameFromRequest.owner) {
+      for (const game of gamesArray) {
+        if (!game.id || !game.name || !game.owner) {
           return reject(
-            new InputError(`Game must have owner: ${gameFromRequest.owner}`)
+            new InputError(
+              `Game ${game.id} must have id, name, and owner: ${game.id}, ${game.name}, ${game.owner}`
+            )
           );
         }
-        if (gameFromRequest.owner !== email) {
+        if (game.owner !== email) {
           return reject(
             new InputError("Cannot modify games owned by other admins")
           );
@@ -200,23 +205,14 @@ export const updateGamesFromAdmin = ({ gamesArrayFromRequest, email }) =>
 
       // Convert array to object format and update
       const newGames = {};
-      gamesArrayFromRequest.forEach((gameFromRequest) => {
-        const gameIdFromRequest = gameFromRequest.id || gameFromRequest.gameId || gameFromRequest.gameID;
-        // If game has an ID and it exists in admin's games, use that ID
-        // Otherwise generate a new ID
-        const gameId =
-          gameIdFromRequest &&
-          otherAdminGameIds.includes(gameIdFromRequest.toString()) === false
-            ? gameIdFromRequest.toString()
-            : generateId(Object.keys(games));
-
-        //
-        newGames[gameId] = {
-          owner: gameFromRequest.owner,
-          // Preserve active session ID & old sessions
-          active: getActiveSessionIdFromGameId(gameId),
-          oldSessions: getInactiveSessionsIdFromGameId(gameId),
-          ...gameFromRequest,
+      gamesArray.forEach((game) => {
+        newGames[game.id] = {
+          name: game.name,
+          owner: game.owner,
+          questions: game.questions || [],
+          thumbnail: game.thumbnail,
+          active: game.active,
+          createdAt: game.createdAt || new Date().toISOString(),
         };
       });
 
@@ -259,19 +255,15 @@ export const advanceGame = (gameId) =>
       if (session.position >= totalQuestions) {
         endGame(gameId);
       } else {
-        try {
-          const questionDuration = session.questions.at(
-            session.position
-          ).duration;
-          if (sessionTimeouts[session.id]) {
-            clearTimeout(sessionTimeouts[session.id]);
-          }
-          sessionTimeouts[session.id] = setTimeout(() => {
-            session.answerAvailable = true;
-          }, questionDuration * 1000);
-        } catch (error) {
-          reject(new InputError("Question duration not found"));
+        const questionDuration = gameQuestionGetDuration(
+          session.questions[session.position]
+        );
+        if (sessionTimeouts[session.id]) {
+          clearTimeout(sessionTimeouts[session.id]);
         }
+        sessionTimeouts[session.id] = setTimeout(() => {
+          session.answerAvailable = true;
+        }, questionDuration * 1000);
       }
       resolve(session.position);
     }
@@ -288,31 +280,29 @@ export const mutateGame = async ({ gameId, mutationType }) => {
   let result;
   try {
     switch (mutationType.toUpperCase()) {
-      case "START":
+      case 'START':
         const sessionId = await startGame(gameId);
-        result = { status: "started", sessionId };
+        result = { status: 'started', sessionId };
         break;
-      case "ADVANCE":
+      case 'ADVANCE':
         const position = await advanceGame(gameId);
-        result = { status: "advanced", position };
+        result = { status: 'advanced', position };
         break;
-      case "END":
+      case 'END':
         await endGame(gameId);
-        result = { status: "ended" };
+        result = { status: 'ended' };
         break;
       default:
-        throw new InputError("Invalid mutation type");
+        throw new InputError('Invalid mutation type');
     }
     return result;
   } catch (error) {
-    throw error instanceof InputError
-      ? error
-      : new Error("Failed to mutate game: " + error.message);
+    throw error instanceof InputError ? error : new Error('Failed to mutate game: ' + error.message);
   }
 };
 
 /***************************************************************
-                      Session Functions
+                       Session Functions
 ***************************************************************/
 
 const gameHasActiveSession = (gameId) =>
@@ -382,7 +372,7 @@ const newPlayerPayload = (name, numQuestions) => ({
   answers: Array(numQuestions).fill({
     questionStartedAt: null,
     answeredAt: null,
-    answers: [],
+    answerIds: [],
     correct: false,
   }),
 });
@@ -451,17 +441,10 @@ export const getQuestion = (playerId) =>
     if (session.position === -1) {
       return reject(new InputError("Session has not started yet"));
     } else {
-      try {
-        const question = session.questions.at(session.position);
-        const { correctAnswers, ...questionWithoutAnswer } = question;
-        const questionWithSessionInfo = {
-          ...questionWithoutAnswer,
-          isoTimeLastQuestionStarted: session.isoTimeLastQuestionStarted,
-        };
-        resolve(questionWithSessionInfo);
-      } catch (error) {
-        reject(new InputError("Question not found"));
-      }
+      resolve({
+        ...gameQuestionPublicReturn(session.questions[session.position]),
+        isoTimeLastQuestionStarted: session.isoTimeLastQuestionStarted,
+      });
     }
   });
 
@@ -471,45 +454,44 @@ export const getAnswers = (playerId) =>
       sessionIdFromPlayerId(playerId)
     );
     if (session.position === -1) {
-      return reject(new InputError("Session has not started yet"));
+      resolve([]);
     } else if (!session.answerAvailable) {
-      return reject(new InputError("Answers are not available yet"));
+      resolve([]);
     } else {
-      try {
-        const answers = session.questions.at(session.position).correctAnswers;
-        resolve(answers);
-      } catch (error) {
-        reject(new InputError("Question not found"));
-      }
+      resolve(
+        gameQuestionGetCorrectAnswers(session.questions[session.position])
+      );
     }
   });
 
-export const submitAnswers = (playerId, answersFromRequest) =>
+export const submitAnswers = (playerId, answerList) =>
   sessionLock((resolve, reject) => {
-    if (answersFromRequest === undefined || answersFromRequest.length === 0) {
+    if (answerList === undefined || answerList.length === 0) {
       return reject(new InputError("Answers must be provided"));
-    }
-
-    const session = getActiveSessionFromSessionId(
-      sessionIdFromPlayerId(playerId)
-    );
-    if (session.position === -1) {
-      return reject(new InputError("Session has not started yet"));
-    } else if (session.answerAvailable) {
-      return reject(
-        new InputError("Can't answer question once answer is available")
-      );
     } else {
-      const currentQuestion = session.questions[session.position];
-      session.players[playerId].answers[session.position] = {
-        questionStartedAt: session.isoTimeLastQuestionStarted,
-        answeredAt: new Date().toISOString(),
-        answers: answersFromRequest,
-        correct:
-          JSON.stringify(currentQuestion.correctAnswers.sort()) ===
-          JSON.stringify(answersFromRequest.sort()),
-      };
-      resolve();
+      const session = getActiveSessionFromSessionId(
+        sessionIdFromPlayerId(playerId)
+      );
+      if (session.position === -1) {
+        return reject(new InputError("Session has not started yet"));
+      } else if (session.answerAvailable) {
+        return reject(
+          new InputError("Can't answer question once answer is available")
+        );
+      } else {
+        session.players[playerId].answers[session.position] = {
+          questionStartedAt: session.isoTimeLastQuestionStarted,
+          answeredAt: new Date().toISOString(),
+          answerIds: answerList,
+          correct:
+            JSON.stringify(
+              gameQuestionGetCorrectAnswers(
+                session.questions[session.position]
+              ).sort()
+            ) === JSON.stringify(answerList.sort()),
+        };
+        resolve();
+      }
     }
   });
 
