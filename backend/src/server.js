@@ -2,10 +2,12 @@ import bodyParser from 'body-parser';
 import cors from 'cors';
 import express from 'express';
 import fs from 'fs';
+const swaggerDocument = JSON.parse(
+  fs.readFileSync(new URL('../swagger.json', import.meta.url))
+);
 import swaggerUi from 'swagger-ui-express';
 
-import swaggerDocument from '../swagger.json';
-import { AccessError, InputError, } from './error';
+import { AccessError, InputError, } from './error.js';
 import {
   assertOwnsGame,
   assertOwnsSession,
@@ -25,7 +27,7 @@ import {
   sessionStatus,
   submitAnswers,
   updateGamesFromAdmin
-} from './service';
+} from './service.js';
 
 const app = express();
 
