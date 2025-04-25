@@ -86,79 +86,72 @@ export default function DashboardPage() {
   });
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header Section */}
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4"
+          className="flex flex-col md:flex-row md:items-center md:justify-between mb-12 gap-6"
         >
           <div>
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">Your Games</h1>
-            <p className="text-gray-600">Create and manage your quiz games</p>
+            <h1 className="text-5xl font-bold text-gray-800 mb-4">Your Games</h1>
+            <p className="text-xl text-gray-600">Create and manage your quiz games</p>
           </div>
-          <div className="flex items-center gap-4">
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="recent">Recently Updated</option>
-              <option value="name">Name</option>
-              <option value="questions">Most Questions</option>
-              <option value="sessions">Most Sessions</option>
-            </select>
-            <button
-              onClick={fetchGames}
-              className="p-2 text-gray-600 hover:text-gray-800 rounded-lg hover:bg-gray-100"
-              disabled={isLoading}
-            >
-              <ArrowPathIcon className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
-            </button>
-          </div>
+
+          {/* Create Game Form */}
+          <motion.form 
+            onSubmit={handleCreateGame}
+            className="flex gap-4"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <div className="relative flex-grow">
+              <input
+                type="text"
+                value={newGameName}
+                onChange={(e) => setNewGameName(e.target.value)}
+                placeholder="Enter game name"
+                className="w-full pl-4 pr-12 py-3 text-lg border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <button
+                type="submit"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-blue-600 hover:text-blue-700"
+                disabled={isLoading}
+              >
+                <PlusIcon className="h-5 w-5" />
+              </button>
+            </div>
+          </motion.form>
         </motion.div>
 
-        {/* Search and Create Form */}
+        {/* Search and Sort */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white rounded-xl shadow-md p-6 mb-8"
+          className="flex flex-col sm:flex-row gap-4 mb-8"
         >
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search games..."
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            <form onSubmit={handleCreateGame} className="flex gap-4">
-              <div className="flex-1">
-                <input
-                  type="text"
-                  value={newGameName}
-                  onChange={(e) => setNewGameName(e.target.value)}
-                  placeholder="Enter game name"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  required
-                />
-              </div>
-              <motion.button
-                type="submit"
-                disabled={isLoading}
-                className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <PlusIcon className="h-5 w-5" />
-                Create Game
-              </motion.button>
-            </form>
+          <div className="relative flex-grow">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search games..."
+              className="w-full pl-4 pr-4 py-3 text-lg border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
           </div>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="px-4 py-3 text-lg border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="recent">Most Recent</option>
+            <option value="name">Name</option>
+            <option value="questions">Most Questions</option>
+            <option value="sessions">Most Sessions</option>
+          </select>
         </motion.div>
 
         {/* Error Message */}
@@ -166,90 +159,99 @@ export default function DashboardPage() {
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="p-3 bg-red-50 text-red-600 rounded-lg text-sm mb-8"
+            className="p-4 bg-red-50 text-red-600 rounded-xl text-lg mb-8"
           >
             {error}
           </motion.div>
         )}
 
         {/* Games Grid */}
-        <AnimatePresence>
-          {isLoading ? (
-            <div className="text-center py-12">
-              <ArrowPathIcon className="h-8 w-8 text-gray-400 animate-spin mx-auto" />
-              <p className="mt-2 text-gray-500">Loading games...</p>
-            </div>
-          ) : filteredGames.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredGames.map((game, index) => (
-                <motion.div
-                  key={game.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ delay: 0.1 * index }}
-                  className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow"
-                >
-                  <div className="p-6">
-                    <h3 className="text-xl font-semibold text-gray-800 mb-2">{game.name}</h3>
-                    <div className="flex flex-wrap gap-4 text-sm text-gray-500 mb-4">
-                      <div className="flex items-center gap-1">
-                        <ChartBarIcon className="h-4 w-4" />
-                        <span>{game.questions?.length || 0} questions</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <UserGroupIcon className="h-4 w-4" />
-                        <span>{game.sessions?.length || 0} sessions</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <ClockIcon className="h-4 w-4" />
-                        <span>{new Date(game.updatedAt).toLocaleDateString()}</span>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <motion.button
-                        onClick={() => navigate(`/games/${game.id}/edit`)}
-                        className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 flex items-center justify-center gap-2"
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        <PencilIcon className="h-4 w-4" />
-                        Edit
-                      </motion.button>
-                      <motion.button
-                        onClick={() => navigate(`/games/${game.id}/play`)}
-                        className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center justify-center gap-2"
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        <PlayIcon className="h-4 w-4" />
-                        Play
-                      </motion.button>
-                      <motion.button
-                        onClick={() => handleDeleteGame(game.id)}
-                        className="px-4 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 flex items-center justify-center"
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        <TrashIcon className="h-4 w-4" />
-                      </motion.button>
-                    </div>
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+        >
+          <AnimatePresence>
+            {filteredGames.map((game) => (
+              <motion.div
+                key={game.id}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="bg-white rounded-2xl shadow-xl p-6 hover:shadow-2xl transition-shadow duration-300"
+              >
+                <div className="flex justify-between items-start mb-4">
+                  <h2 className="text-2xl font-bold text-gray-800">{game.name}</h2>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => navigate(`/game/${game.id}`)}
+                      className="p-2 text-blue-600 hover:text-blue-700"
+                    >
+                      <PencilIcon className="h-5 w-5" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteGame(game.id)}
+                      className="p-2 text-red-600 hover:text-red-700"
+                    >
+                      <TrashIcon className="h-5 w-5" />
+                    </button>
                   </div>
-                </motion.div>
-              ))}
-            </div>
-          ) : (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-center py-12"
-            >
-              <p className="text-gray-500">
-                {searchQuery ? 'No games found matching your search.' : 'No games yet. Create your first game to get started!'}
-              </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4 mb-6">
+                  <div className="text-center">
+                    <ChartBarIcon className="h-6 w-6 text-blue-600 mx-auto mb-2" />
+                    <p className="text-lg font-medium text-gray-700">{game.questions?.length || 0}</p>
+                    <p className="text-sm text-gray-500">Questions</p>
+                  </div>
+                  <div className="text-center">
+                    <UserGroupIcon className="h-6 w-6 text-green-600 mx-auto mb-2" />
+                    <p className="text-lg font-medium text-gray-700">{game.sessions?.length || 0}</p>
+                    <p className="text-sm text-gray-500">Sessions</p>
+                  </div>
+                  <div className="text-center">
+                    <ClockIcon className="h-6 w-6 text-purple-600 mx-auto mb-2" />
+                    <p className="text-lg font-medium text-gray-700">
+                      {new Date(game.updatedAt).toLocaleDateString()}
+                    </p>
+                    <p className="text-sm text-gray-500">Updated</p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => navigate(`/play/join/${game.id}`)}
+                  className="w-full px-6 py-3 bg-blue-600 text-white text-lg font-medium rounded-xl hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center justify-center gap-2"
+                >
+                  <PlayIcon className="h-4 w-4" />
+                  Start Game
+                </button>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </motion.div>
+
+        {/* Loading State */}
+        {isLoading && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex justify-center items-center py-12"
+          >
+            <ArrowPathIcon className="h-6 w-6 text-blue-600 animate-spin" />
+          </motion.div>
+        )}
+
+        {/* Empty State */}
+        {!isLoading && filteredGames.length === 0 && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center py-12"
+          >
+            <p className="text-xl text-gray-600">No games found. Create your first game!</p>
+          </motion.div>
+        )}
       </div>
     </div>
   );
