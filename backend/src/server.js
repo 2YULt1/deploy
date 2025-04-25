@@ -2,10 +2,12 @@ import bodyParser from 'body-parser';
 import cors from 'cors';
 import express from 'express';
 import fs from 'fs';
+import swaggerUi from 'swagger-ui-express';
+import redis from './db.js';
+
 const swaggerDocument = JSON.parse(
   fs.readFileSync(new URL('../swagger.json', import.meta.url))
 );
-import swaggerUi from 'swagger-ui-express';
 
 import { AccessError, InputError, } from './error.js';
 import {
@@ -30,6 +32,28 @@ import {
 } from './service.js';
 
 const app = express();
+
+// Initialize Redis data
+const initializeData = async () => {
+  try {
+    const admins = await redis.get('admins');
+    const games = await redis.get('games');
+    const sessions = await redis.get('sessions');
+    
+    if (!admins || !games || !sessions) {
+      await redis.set('admins', JSON.stringify({}));
+      await redis.set('games', JSON.stringify({}));
+      await redis.set('sessions', JSON.stringify({}));
+    }
+  } catch (error) {
+    console.log("WARNING: Error initializing data, creating new database");
+    await redis.set('admins', JSON.stringify({}));
+    await redis.set('games', JSON.stringify({}));
+    await redis.set('sessions', JSON.stringify({}));
+  }
+};
+
+initializeData();
 
 app.use(cors());
 app.use(bodyParser.urlencoded({ extended: true, }));
@@ -168,12 +192,8 @@ app.get('/', (req, res) => res.redirect('/docs'));
 
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
-const configData = JSON.parse(fs.readFileSync('../frontend/backend.config.json', 'utf8'));
-const port = 'BACKEND_PORT' in configData ? configData.BACKEND_PORT : 5000;
+// Use Vercel's PORT environment variable or default to 5000
+const port = process.env.PORT || 5000;
 
-const server = app.listen(port, () => {
-  console.log(`Backend is now listening on port ${port}!`);
-  console.log(`For API docs, navigate to http://localhost:${port}`);
-});
-
-export default server;
+// Export the Express API
+export default app;

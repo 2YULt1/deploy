@@ -1,73 +1,69 @@
 import AsyncLock from "async-lock";
-import fs from "fs";
 import jwt from "jsonwebtoken";
 import { AccessError, InputError } from "./error.js";
+import redis from './db.js';
 
 const lock = new AsyncLock();
-
 const JWT_SECRET = "llamallamaduck";
-const DATABASE_FILE = "./database.json";
 
 /***************************************************************
                       State Management
 ***************************************************************/
 
-let admins = {};
-let games = {};
-let sessions = {};
-
-const sessionTimeouts = {};
-
-const update = (admins, games, sessions) =>
-  new Promise((resolve, reject) => {
-    lock.acquire("saveData", () => {
-      try {
-        fs.writeFileSync(
-          DATABASE_FILE,
-          JSON.stringify(
-            {
-              admins,
-              games,
-              sessions,
-            },
-            null,
-            2
-          )
-        );
-        resolve();
-      } catch {
-        reject(new Error("Writing to database failed"));
-      }
-    });
-  });
-
-export const save = () => update(admins, games, sessions);
-export const reset = () => {
-  update({}, {}, {});
-  admins = {};
-  games = {};
-  sessions = {};
+const update = async (admins, games, sessions) => {
+  try {
+    await redis.set('admins', JSON.stringify(admins));
+    await redis.set('games', JSON.stringify(games));
+    await redis.set('sessions', JSON.stringify(sessions));
+  } catch (error) {
+    throw new Error("Writing to database failed");
+  }
 };
 
-try {
-  const data = JSON.parse(fs.readFileSync(DATABASE_FILE));
-  admins = data.admins;
-  games = data.games;
-  sessions = data.sessions;
-} catch {
-  console.log("WARNING: No database found, create a new one");
-  save();
-}
+export const save = async () => {
+  const admins = JSON.parse(await redis.get('admins') || '{}');
+  const games = JSON.parse(await redis.get('games') || '{}');
+  const sessions = JSON.parse(await redis.get('sessions') || '{}');
+  await update(admins, games, sessions);
+};
+
+export const reset = async () => {
+  await update({}, {}, {});
+};
+
+// Initialize data if not exists
+const initializeData = async () => {
+  try {
+    const admins = await redis.get('admins');
+    const games = await redis.get('games');
+    const sessions = await redis.get('sessions');
+    
+    if (!admins || !games || !sessions) {
+      await update({}, {}, {});
+    }
+  } catch (error) {
+    console.log("WARNING: Error initializing data, creating new database");
+    await update({}, {}, {});
+  }
+};
+
+initializeData();
 
 /***************************************************************
                       Helper Functions
 ***************************************************************/
 
-const newSessionId = (_) => generateId(Object.keys(sessions), 999999);
-const newPlayerId = (_) =>
-  generateId(
-    Object.keys(sessions).map((s) => Object.keys(sessions[s].players))
+const newSessionId = async () => {
+  const sessions = JSON.parse(await redis.get('sessions') || '{}');
+  return generateId(Object.keys(sessions), 999999);
+};
+
+const newPlayerId = async () => {
+  const sessions = JSON.parse(await redis.get('sessions') || '{}');
+  return generateId(
+    Object.keys(sessions).map((s) => Object.keys(sessions[s].players || {}))
   );
+};
 
 export const userLock = (callback) =>
   new Promise((resolve, reject) => {
@@ -101,10 +97,11 @@ const generateId = (currentList, max = 999999999) => {
                       Auth Functions
 ***************************************************************/
 
-export const getEmailFromAuthorization = (authorization) => {
+export const getEmailFromAuthorization = async (authorization) => {
   try {
     const token = authorization.replace("Bearer ", "");
     const { email } = jwt.verify(token, JWT_SECRET);
+    const admins = JSON.parse(await redis.get('admins') || '{}');
     if (!(email in admins)) {
       throw new AccessError("Invalid Token");
     }
@@ -114,25 +111,30 @@ export const getEmailFromAuthorization = (authorization) => {
   }
 };
 
-export const login = (email, password) =>
-  userLock((resolve, reject) => {
+export const login = async (email, password) =>
+  userLock(async (resolve, reject) => {
+    const admins = JSON.parse(await redis.get('admins') || '{}');
     if (email in admins) {
       if (admins[email].password === password) {
         admins[email].sessionActive = true;
+        await redis.set('admins', JSON.stringify(admins));
         resolve(jwt.sign({ email }, JWT_SECRET, { algorithm: "HS256" }));
       }
     }
     reject(new InputError("Invalid username or password"));
   });
 
-export const logout = (email) =>
-  userLock((resolve, reject) => {
+export const logout = async (email) =>
+  userLock(async (resolve, reject) => {
+    const admins = JSON.parse(await redis.get('admins') || '{}');
     admins[email].sessionActive = false;
+    await redis.set('admins', JSON.stringify(admins));
     resolve();
   });
 
-export const register = (email, password, name) =>
-  userLock((resolve, reject) => {
+export const register = async (email, password, name) =>
+  userLock(async (resolve, reject) => {
+    const admins = JSON.parse(await redis.get('admins') || '{}');
     if (email in admins) {
       return reject(new InputError("Email address already registered"));
     }
@@ -141,6 +143,7 @@ export const register = (email, password, name) =>
       password,
       sessionActive: true,
     };
+    await redis.set('admins', JSON.stringify(admins));
     const token = jwt.sign({ email }, JWT_SECRET, { algorithm: "HS256" });
     resolve(token);
   });
@@ -149,8 +152,9 @@ export const register = (email, password, name) =>
                       Game Functions
 ***************************************************************/
 
-export const assertOwnsGame = (email, gameId) =>
-  gameLock((resolve, reject) => {
+export const assertOwnsGame = async (email, gameId) =>
+  gameLock(async (resolve, reject) => {
+    const games = JSON.parse(await redis.get('games') || '{}');
     if (!(gameId in games)) {
       return reject(new InputError("Invalid game ID"));
     } else if (games[gameId].owner !== email) {
@@ -160,8 +164,9 @@ export const assertOwnsGame = (email, gameId) =>
     }
   });
 
-export const getGamesFromAdmin = (email) =>
-  gameLock((resolve, reject) => {
+export const getGamesFromAdmin = async (email) =>
+  gameLock(async (resolve, reject) => {
+    const games = JSON.parse(await redis.get('games') || '{}');
     const filteredGames = Object.keys(games)
       .filter((key) => games[key].owner === email)
       .map((key) => {
@@ -176,9 +181,10 @@ export const getGamesFromAdmin = (email) =>
     resolve(filteredGames);
   });
 
-export const updateGamesFromAdmin = ({ gamesArrayFromRequest, email }) =>
-  gameLock((resolve, reject) => {
+export const updateGamesFromAdmin = async ({ gamesArrayFromRequest, email }) =>
+  gameLock(async (resolve, reject) => {
     try {
+      const games = JSON.parse(await redis.get('games') || '{}');
       // Get all existing game IDs owned by other admins
       const otherAdminGameIds = Object.keys(games).filter(
         (gameId) => games[gameId].owner !== email
@@ -202,18 +208,14 @@ export const updateGamesFromAdmin = ({ gamesArrayFromRequest, email }) =>
       const newGames = {};
       gamesArrayFromRequest.forEach((gameFromRequest) => {
         const gameIdFromRequest = gameFromRequest.id || gameFromRequest.gameId || gameFromRequest.gameID;
-        // If game has an ID and it exists in admin's games, use that ID
-        // Otherwise generate a new ID
         const gameId =
           gameIdFromRequest &&
           otherAdminGameIds.includes(gameIdFromRequest.toString()) === false
             ? gameIdFromRequest.toString()
             : generateId(Object.keys(games));
 
-        //
         newGames[gameId] = {
           owner: gameFromRequest.owner,
-          // Preserve active session ID & old sessions
           active: getActiveSessionIdFromGameId(gameId),
           oldSessions: getInactiveSessionsIdFromGameId(gameId),
           ...gameFromRequest,
@@ -227,28 +229,33 @@ export const updateGamesFromAdmin = ({ gamesArrayFromRequest, email }) =>
         }
       });
 
-      games = newGames;
-      save(); // Save to database after update
+      await redis.set('games', JSON.stringify(newGames));
       resolve();
     } catch (error) {
       reject(new Error("Failed to update games"));
     }
   });
 
-export const startGame = (gameId) =>
-  gameLock((resolve, reject) => {
-    if (gameHasActiveSession(gameId)) {
+export const startGame = async (gameId) =>
+  gameLock(async (resolve, reject) => {
+    const games = JSON.parse(await redis.get('games') || '{}');
+    const sessions = JSON.parse(await redis.get('sessions') || '{}');
+    
+    if (await gameHasActiveSession(gameId)) {
       return reject(new InputError("Game already has active session"));
     } else {
-      const id = newSessionId();
-      sessions[id] = newSessionPayload(gameId);
+      const id = await newSessionId();
+      sessions[id] = await newSessionPayload(gameId);
+      await redis.set('sessions', JSON.stringify(sessions));
       resolve(id);
     }
   });
 
-export const advanceGame = (gameId) =>
-  gameLock((resolve, reject) => {
-    const session = getActiveSessionFromGameIdThrow(gameId);
+export const advanceGame = async (gameId) =>
+  gameLock(async (resolve, reject) => {
+    const sessions = JSON.parse(await redis.get('sessions') || '{}');
+    const session = await getActiveSessionFromGameIdThrow(gameId);
+    
     if (!session.active) {
       return reject(new InputError("Cannot advance a game that is not active"));
     } else {
@@ -256,31 +263,35 @@ export const advanceGame = (gameId) =>
       session.position += 1;
       session.answerAvailable = false;
       session.isoTimeLastQuestionStarted = new Date().toISOString();
+      
       if (session.position >= totalQuestions) {
-        endGame(gameId);
+        await endGame(gameId);
       } else {
         try {
-          const questionDuration = session.questions.at(
-            session.position
-          ).duration;
+          const questionDuration = session.questions[session.position].duration;
           if (sessionTimeouts[session.id]) {
             clearTimeout(sessionTimeouts[session.id]);
           }
-          sessionTimeouts[session.id] = setTimeout(() => {
+          sessionTimeouts[session.id] = setTimeout(async () => {
             session.answerAvailable = true;
+            await redis.set('sessions', JSON.stringify(sessions));
           }, questionDuration * 1000);
         } catch (error) {
           reject(new InputError("Question duration not found"));
         }
       }
+      
+      await redis.set('sessions', JSON.stringify(sessions));
       resolve(session.position);
     }
   });
 
-export const endGame = (gameId) =>
-  gameLock((resolve, reject) => {
-    const session = getActiveSessionFromGameIdThrow(gameId);
+export const endGame = async (gameId) =>
+  gameLock(async (resolve, reject) => {
+    const sessions = JSON.parse(await redis.get('sessions') || '{}');
+    const session = await getActiveSessionFromGameIdThrow(gameId);
     session.active = false;
+    await redis.set('sessions', JSON.stringify(sessions));
     resolve();
   });
 
@@ -315,23 +326,27 @@ export const mutateGame = async ({ gameId, mutationType }) => {
                       Session Functions
 ***************************************************************/
 
-const gameHasActiveSession = (gameId) =>
-  Object.keys(sessions).filter(
+const gameHasActiveSession = async (gameId) => {
+  const sessions = JSON.parse(await redis.get('sessions') || '{}');
+  return Object.keys(sessions).filter(
     (s) => sessions[s].gameId === gameId && sessions[s].active
   ).length > 0;
+};
 
-const getActiveSessionFromGameIdThrow = (gameId) => {
-  if (!gameHasActiveSession(gameId)) {
+const getActiveSessionFromGameIdThrow = async (gameId) => {
+  const sessions = JSON.parse(await redis.get('sessions') || '{}');
+  if (!await gameHasActiveSession(gameId)) {
     throw new InputError("Game has no active session");
   }
-  const sessionId = getActiveSessionIdFromGameId(gameId);
+  const sessionId = await getActiveSessionIdFromGameId(gameId);
   if (sessionId !== null) {
     return sessions[sessionId];
   }
   return null;
 };
 
-const getActiveSessionIdFromGameId = (gameId) => {
+const getActiveSessionIdFromGameId = async (gameId) => {
+  const sessions = JSON.parse(await redis.get('sessions') || '{}');
   const activeSessions = Object.keys(sessions).filter(
     (s) => sessions[s].gameId === gameId && sessions[s].active
   );
@@ -341,12 +356,15 @@ const getActiveSessionIdFromGameId = (gameId) => {
   return null;
 };
 
-const getInactiveSessionsIdFromGameId = (gameId) =>
-  Object.keys(sessions)
+const getInactiveSessionsIdFromGameId = async (gameId) => {
+  const sessions = JSON.parse(await redis.get('sessions') || '{}');
+  return Object.keys(sessions)
     .filter((sid) => sessions[sid].gameId === gameId && !sessions[sid].active)
     .map((s) => parseInt(s, 10));
+};
 
-const getActiveSessionFromSessionId = (sessionId) => {
+const getActiveSessionFromSessionId = async (sessionId) => {
+  const sessions = JSON.parse(await redis.get('sessions') || '{}');
   if (sessionId in sessions) {
     if (sessions[sessionId].active) {
       return sessions[sessionId];
@@ -355,7 +373,8 @@ const getActiveSessionFromSessionId = (sessionId) => {
   throw new InputError("Session ID is not an active session");
 };
 
-const sessionIdFromPlayerId = (playerId) => {
+const sessionIdFromPlayerId = async (playerId) => {
+  const sessions = JSON.parse(await redis.get('sessions') || '{}');
   for (const sessionId of Object.keys(sessions)) {
     if (
       Object.keys(sessions[sessionId].players).filter((p) => p === playerId)
@@ -367,15 +386,18 @@ const sessionIdFromPlayerId = (playerId) => {
   throw new InputError("Player ID does not refer to valid player id");
 };
 
-const newSessionPayload = (gameId) => ({
-  gameId,
-  position: -1,
-  isoTimeLastQuestionStarted: null,
-  players: {},
-  questions: copy(games[gameId].questions),
-  active: true,
-  answerAvailable: false,
-});
+const newSessionPayload = async (gameId) => {
+  const games = JSON.parse(await redis.get('games') || '{}');
+  return {
+    gameId,
+    position: -1,
+    isoTimeLastQuestionStarted: null,
+    players: {},
+    questions: copy(games[gameId].questions),
+    active: true,
+    answerAvailable: false,
+  };
+};
 
 const newPlayerPayload = (name, numQuestions) => ({
   name: name,
@@ -387,7 +409,8 @@ const newPlayerPayload = (name, numQuestions) => ({
   }),
 });
 
-export const sessionStatus = (sessionId) => {
+export const sessionStatus = async (sessionId) => {
+  const sessions = JSON.parse(await redis.get('sessions') || '{}');
   const session = sessions[sessionId];
   return {
     active: session.active,
@@ -402,11 +425,13 @@ export const sessionStatus = (sessionId) => {
 };
 
 export const assertOwnsSession = async (email, sessionId) => {
+  const sessions = JSON.parse(await redis.get('sessions') || '{}');
   await assertOwnsGame(email, sessions[sessionId].gameId);
 };
 
-export const sessionResults = (sessionId) =>
-  sessionLock((resolve, reject) => {
+export const sessionResults = async (sessionId) =>
+  sessionLock(async (resolve, reject) => {
+    const sessions = JSON.parse(await redis.get('sessions') || '{}');
     const session = sessions[sessionId];
     if (session.active) {
       return reject(new InputError("Cannot get results for active session"));
@@ -415,26 +440,29 @@ export const sessionResults = (sessionId) =>
     }
   });
 
-export const playerJoin = (name, sessionId) =>
-  sessionLock((resolve, reject) => {
+export const playerJoin = async (name, sessionId) =>
+  sessionLock(async (resolve, reject) => {
+    const sessions = JSON.parse(await redis.get('sessions') || '{}');
     if (name === undefined) {
       return reject(new InputError("Name must be supplied"));
     } else {
-      const session = getActiveSessionFromSessionId(sessionId);
+      const session = await getActiveSessionFromSessionId(sessionId);
       if (session.position >= 0) {
         return reject(new InputError("Session has already begun"));
       } else {
-        const id = newPlayerId();
+        const id = await newPlayerId();
         session.players[id] = newPlayerPayload(name, session.questions.length);
+        await redis.set('sessions', JSON.stringify(sessions));
         resolve(parseInt(id, 10));
       }
     }
   });
 
-export const hasStarted = (playerId) =>
-  sessionLock((resolve, reject) => {
-    const session = getActiveSessionFromSessionId(
-      sessionIdFromPlayerId(playerId)
+export const hasStarted = async (playerId) =>
+  sessionLock(async (resolve, reject) => {
+    const sessions = JSON.parse(await redis.get('sessions') || '{}');
+    const session = await getActiveSessionFromSessionId(
+      await sessionIdFromPlayerId(playerId)
     );
     if (session.isoTimeLastQuestionStarted !== null) {
       resolve(true);
@@ -443,16 +471,17 @@ export const hasStarted = (playerId) =>
     }
   });
 
-export const getQuestion = (playerId) =>
-  sessionLock((resolve, reject) => {
-    const session = getActiveSessionFromSessionId(
-      sessionIdFromPlayerId(playerId)
+export const getQuestion = async (playerId) =>
+  sessionLock(async (resolve, reject) => {
+    const sessions = JSON.parse(await redis.get('sessions') || '{}');
+    const session = await getActiveSessionFromSessionId(
+      await sessionIdFromPlayerId(playerId)
     );
     if (session.position === -1) {
       return reject(new InputError("Session has not started yet"));
     } else {
       try {
-        const question = session.questions.at(session.position);
+        const question = session.questions[session.position];
         const { correctAnswers, ...questionWithoutAnswer } = question;
         const questionWithSessionInfo = {
           ...questionWithoutAnswer,
@@ -465,10 +494,11 @@ export const getQuestion = (playerId) =>
     }
   });
 
-export const getAnswers = (playerId) =>
-  sessionLock((resolve, reject) => {
-    const session = getActiveSessionFromSessionId(
-      sessionIdFromPlayerId(playerId)
+export const getAnswers = async (playerId) =>
+  sessionLock(async (resolve, reject) => {
+    const sessions = JSON.parse(await redis.get('sessions') || '{}');
+    const session = await getActiveSessionFromSessionId(
+      await sessionIdFromPlayerId(playerId)
     );
     if (session.position === -1) {
       return reject(new InputError("Session has not started yet"));
@@ -476,7 +506,7 @@ export const getAnswers = (playerId) =>
       return reject(new InputError("Answers are not available yet"));
     } else {
       try {
-        const answers = session.questions.at(session.position).correctAnswers;
+        const answers = session.questions[session.position].correctAnswers;
         resolve(answers);
       } catch (error) {
         reject(new InputError("Question not found"));
@@ -484,14 +514,15 @@ export const getAnswers = (playerId) =>
     }
   });
 
-export const submitAnswers = (playerId, answersFromRequest) =>
-  sessionLock((resolve, reject) => {
+export const submitAnswers = async (playerId, answersFromRequest) =>
+  sessionLock(async (resolve, reject) => {
+    const sessions = JSON.parse(await redis.get('sessions') || '{}');
     if (answersFromRequest === undefined || answersFromRequest.length === 0) {
       return reject(new InputError("Answers must be provided"));
     }
 
-    const session = getActiveSessionFromSessionId(
-      sessionIdFromPlayerId(playerId)
+    const session = await getActiveSessionFromSessionId(
+      await sessionIdFromPlayerId(playerId)
     );
     if (session.position === -1) {
       return reject(new InputError("Session has not started yet"));
@@ -509,13 +540,15 @@ export const submitAnswers = (playerId, answersFromRequest) =>
           JSON.stringify(currentQuestion.correctAnswers.sort()) ===
           JSON.stringify(answersFromRequest.sort()),
       };
+      await redis.set('sessions', JSON.stringify(sessions));
       resolve();
     }
   });
 
-export const getResults = (playerId) =>
-  sessionLock((resolve, reject) => {
-    const session = sessions[sessionIdFromPlayerId(playerId)];
+export const getResults = async (playerId) =>
+  sessionLock(async (resolve, reject) => {
+    const sessions = JSON.parse(await redis.get('sessions') || '{}');
+    const session = sessions[await sessionIdFromPlayerId(playerId)];
     if (session.active) {
       return reject(
         new InputError("Session is ongoing, cannot get results yet")
