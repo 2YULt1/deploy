@@ -12,8 +12,8 @@ section,completed
 2.4.2,yes
 2.4.3,yes
 2.5.1,yes
-2.5.2,yes
-2.5.3,yes
-2.5.4,yes
+2.6.1,yes
+2.7,yes
+2.8,yes
 
 FE_DEPLOYED_URL=https://frontendbigbrain-4mkygvzf0-z-huangs-projects.vercel.app/login
