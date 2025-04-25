@@ -75,35 +75,41 @@ export default function SessionPage() {
   const renderSessionControls = () => {
     if (status.position === -1) {
       return (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center space-y-4">
-          <motion.button
-            onClick={startSession}
-            className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            Start Session
-          </motion.button>
-          <div className="flex items-center space-x-2">
-            <span className="text-gray-600">Session ID: {sessionId}</span>
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white rounded-xl shadow-md p-6 mb-8"
+        >
+          <div className="flex flex-col items-center space-y-4">
             <motion.button
-              onClick={copySessionLink}
-              className="p-2 hover:bg-gray-100 rounded"
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
+              onClick={startSession}
+              className="px-8 py-4 bg-green-600 text-white text-lg font-medium rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
-              <img src={copyIcon} alt="Copy" className="w-4 h-4" />
+              Start Session
             </motion.button>
-            {showCopySuccess && (
-              <motion.span
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="text-green-500"
+            <div className="flex items-center space-x-3 bg-gray-50 p-3 rounded-lg">
+              <span className="text-gray-700 font-medium">Session ID: {sessionId}</span>
+              <motion.button
+                onClick={copySessionLink}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
               >
-                Copied!
-              </motion.span>
-            )}
+                <img src={copyIcon} alt="Copy" className="w-5 h-5" />
+              </motion.button>
+              {showCopySuccess && (
+                <motion.span
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="text-green-500 font-medium"
+                >
+                  Copied!
+                </motion.span>
+              )}
+            </div>
           </div>
         </motion.div>
       );
@@ -111,23 +117,29 @@ export default function SessionPage() {
 
     if (status.position >= 0 && status.position < status.totalQuestions) {
       return (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex space-x-4">
-          <motion.button
-            onClick={nextQuestion}
-            className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            Next Question
-          </motion.button>
-          <motion.button
-            onClick={endSession}
-            className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            End Session
-          </motion.button>
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white rounded-xl shadow-md p-6 mb-8"
+        >
+          <div className="flex flex-col sm:flex-row justify-center gap-4">
+            <motion.button
+              onClick={nextQuestion}
+              className="px-8 py-4 bg-blue-600 text-white text-lg font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              Next Question
+            </motion.button>
+            <motion.button
+              onClick={endSession}
+              className="px-8 py-4 bg-red-600 text-white text-lg font-medium rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              End Session
+            </motion.button>
+          </div>
         </motion.div>
       );
     }
@@ -156,48 +168,65 @@ export default function SessionPage() {
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="space-y-8 mt-8"
+        className="space-y-8"
       >
-        <div>
-          <h3 className="text-xl font-bold mb-4">Top Players</h3>
-          <div className="bg-white bg-opacity-80 p-4 rounded-lg shadow">
+        {/* Top Players */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white rounded-xl shadow-md p-6"
+        >
+          <h3 className="text-xl font-bold text-gray-800 mb-4">Top Players</h3>
+          <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b">
-                  <th className="text-left py-2">Player</th>
-                  <th className="text-right py-2">Score</th>
+                  <th className="text-left py-3 px-4 text-gray-600 font-medium">Player</th>
+                  <th className="text-right py-3 px-4 text-gray-600 font-medium">Score</th>
                 </tr>
               </thead>
               <tbody>
                 {topPlayers.map((player, i) => (
-                  <tr key={i} className="border-b">
-                    <td className="py-2">{player.name}</td>
-                    <td className="text-right py-2">{player.score}</td>
+                  <tr key={i} className="border-b hover:bg-gray-50">
+                    <td className="py-3 px-4">{player.name}</td>
+                    <td className="text-right py-3 px-4 font-medium">{player.score}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </div>
+        </motion.div>
 
-        <div>
-          <h3 className="text-xl font-bold mb-4">Question Accuracy</h3>
-          <div className="bg-white bg-opacity-80 p-4 rounded-lg shadow">
-            <ResponsiveContainer width="100%" height={300}>
+        {/* Question Accuracy Chart */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-white rounded-xl shadow-md p-6"
+        >
+          <h3 className="text-xl font-bold text-gray-800 mb-4">Question Accuracy</h3>
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
               <LineChart data={accuracyData}>
                 <XAxis dataKey="question" />
                 <YAxis label={{ value: '% Correct', angle: -90, position: 'insideLeft' }} />
                 <Tooltip />
-                <Line type="monotone" dataKey="correctRate" stroke="#8884d8" />
+                <Line type="monotone" dataKey="correctRate" stroke="#8884d8" strokeWidth={2} />
               </LineChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </motion.div>
 
-        <div>
-          <h3 className="text-xl font-bold mb-4">Average Response Time</h3>
-          <div className="bg-white bg-opacity-80 p-4 rounded-lg shadow">
-            <ResponsiveContainer width="100%" height={300}>
+        {/* Average Response Time Chart */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-white rounded-xl shadow-md p-6"
+        >
+          <h3 className="text-xl font-bold text-gray-800 mb-4">Average Response Time</h3>
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
               <BarChart data={timeData}>
                 <XAxis dataKey="question" />
                 <YAxis label={{ value: 'Seconds', angle: -90, position: 'insideLeft' }} />
@@ -206,15 +235,17 @@ export default function SessionPage() {
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </motion.div>
       </motion.div>
     );
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      {renderSessionControls()}
-      {renderResults()}
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-6xl mx-auto px-4">
+        {renderSessionControls()}
+        {renderResults()}
+      </div>
     </div>
   );
 }

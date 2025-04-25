@@ -1,144 +1,155 @@
 // pages/RegisterPage.jsx
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { motion } from 'framer-motion';
-import avatar from '../assets/register-avatar.png';
+import { UserIcon, LockClosedIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
 
 export default function RegisterPage() {
-  const [email, setEmail] = useState('');
   const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const handleSubmit = async e => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-    
-    if (password !== confirm) {
+    if (password !== confirmPassword) {
       setError('Passwords do not match');
       return;
     }
-
     try {
-      const res = await axios.post('/admin/auth/register', { email, name, password });
+      const res = await axios.post('/auth/register', { name, email, password });
       localStorage.setItem('token', res.data.token);
       navigate('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.error || 'Registration failed. Please try again.');
-    }
-  };
-
-  const handleKeyPress = e => {
-    if (e.key === 'Enter') {
-      handleSubmit(e);
+      setError(err.response?.data?.message || 'Registration failed');
     }
   };
 
   return (
-    <div className="flex h-screen">
-      {/* Left */}
-      <div className="w-1/3"></div>
-
-      {/* Right register */}
-      <div className="w-2/3 flex items-center justify-center">
-        <motion.div
-          className="bg-white bg-opacity-90 p-10 rounded-2xl shadow-xl max-w-md w-full"
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5 }}
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-md mx-auto px-4">
+        {/* Header Section */}
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center mb-8"
         >
-          {/* Heading */}
-          <h1 className="text-6xl font-extrabold text-gray-800 text-center mb-8">
-            BigBrain
-          </h1>
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">Create Account</h1>
+          <p className="text-gray-600">Join our community</p>
+        </motion.div>
 
-          {/* Subtitle */}
-          <h2 className="text-2xl font-semibold text-gray-600 text-center mb-6">
-            Admin Register
-          </h2>
+        {/* Register Form */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-white rounded-xl shadow-md p-6"
+        >
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Name Input */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <UserIcon className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter your name"
+                />
+              </div>
+            </div>
 
-          {/* Avatar */}
-          <div className="flex justify-center mb-6">
-            <img src={avatar} alt="Register" className="w-24 h-24" />
-          </div>
+            {/* Email Input */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <EnvelopeIcon className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter your email"
+                />
+              </div>
+            </div>
 
-          {/* Error message */}
-          {error && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4"
-            >
-              {error}
-            </motion.div>
-          )}
+            {/* Password Input */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <LockClosedIcon className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter your password"
+                />
+              </div>
+            </div>
 
-          {/* Register form */}
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <motion.input
-              whileFocus={{ scale: 1.02 }}
-              type="email"
-              placeholder="Email"
-              className="w-full text-lg p-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              onKeyPress={handleKeyPress}
-              required
-            />
-            <motion.input
-              whileFocus={{ scale: 1.02 }}
-              type="text"
-              placeholder="Name"
-              className="w-full text-lg p-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              onKeyPress={handleKeyPress}
-              required
-            />
-            <motion.input
-              whileFocus={{ scale: 1.02 }}
-              type="password"
-              placeholder="Password"
-              className="w-full text-lg p-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              onKeyPress={handleKeyPress}
-              required
-            />
-            <motion.input
-              whileFocus={{ scale: 1.02 }}
-              type="password"
-              placeholder="Confirm Password"
-              className="w-full text-lg p-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={confirm}
-              onChange={e => setConfirm(e.target.value)}
-              onKeyPress={handleKeyPress}
-              required
-            />
+            {/* Confirm Password Input */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <LockClosedIcon className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Confirm your password"
+                />
+              </div>
+            </div>
+
+            {/* Error Message */}
+            {error && (
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="p-3 bg-red-50 text-red-600 rounded-lg text-sm"
+              >
+                {error}
+              </motion.div>
+            )}
+
+            {/* Submit Button */}
             <motion.button
               type="submit"
-              className="w-full text-lg py-3 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
+              className="w-full px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
             >
-              Register
+              Create Account
             </motion.button>
           </form>
 
-          {/* Login link */}
+          {/* Login Link */}
           <div className="mt-6 text-center">
-            <p className="text-gray-600">
+            <p className="text-sm text-gray-600">
               Already have an account?{' '}
-              <motion.a
-                href="/login"
-                className="text-blue-600 hover:text-blue-800"
-                whileHover={{ scale: 1.05 }}
-              >
-                Login here
-              </motion.a>
+              <Link to="/login" className="text-blue-600 hover:text-blue-700 font-medium">
+                Sign in
+              </Link>
             </p>
           </div>
         </motion.div>

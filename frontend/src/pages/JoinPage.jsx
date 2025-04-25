@@ -1,27 +1,121 @@
 // pages/JoinPage.jsx
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { motion } from 'framer-motion';
-import { useNavigate, useParams } from 'react-router-dom';
-import joinIcon from '../assets/join-icon.png';
+import { ArrowRightIcon, UserGroupIcon } from '@heroicons/react/24/outline';
 
 export default function JoinPage() {
-  const { sessionId } = useParams();
+  const [sessionCode, setSessionCode] = useState('');
   const [name, setName] = useState('');
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const join = async () => {
-    const { data } = await axios.post(`/play/join/${sessionId}`, { name });
-    localStorage.setItem('playerId', data.playerId);
-    navigate(`/play/question/${data.playerId}`);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await axios.post('/sessions/join', { sessionCode, name });
+      localStorage.setItem('playerToken', res.data.token);
+      navigate(`/sessions/${sessionCode}/play`);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to join session');
+    }
   };
 
   return (
-    <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }} transition={{ duration: 0.5 }} className="max-w-md mx-auto bg-white p-6 rounded-lg shadow-lg text-center">
-      <img src={joinIcon} alt="Join" className="w-16 h-16 mx-auto mb-4" />
-      <h2 className="text-2xl font-bold mb-4">Join Session</h2>
-      <input value={name} onChange={e => setName(e.target.value)} placeholder="Your Name" className="w-full p-2 border rounded mb-4" />
-      <motion.button onClick={join} className="px-6 py-2 bg-blue-600 text-white rounded" whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>Join</motion.button>
-    </motion.div>
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-md mx-auto px-4">
+        {/* Header Section */}
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center mb-8"
+        >
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">Join Game</h1>
+          <p className="text-gray-600">Enter the session code to join</p>
+        </motion.div>
+
+        {/* Join Form */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-white rounded-xl shadow-md p-6"
+        >
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Session Code Input */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Session Code</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <UserGroupIcon className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  value={sessionCode}
+                  onChange={(e) => setSessionCode(e.target.value)}
+                  placeholder="Enter session code"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Player Name Input */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Your Name</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <UserGroupIcon className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Enter your name"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Error Message */}
+            {error && (
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="p-3 bg-red-50 text-red-600 rounded-lg text-sm"
+              >
+                {error}
+              </motion.div>
+            )}
+
+            {/* Submit Button */}
+            <motion.button
+              type="submit"
+              className="w-full px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center justify-center gap-2"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              Join Game
+              <ArrowRightIcon className="h-5 w-5" />
+            </motion.button>
+          </form>
+
+          {/* Back to Dashboard Link */}
+          <div className="mt-6 text-center">
+            <p className="text-sm text-gray-600">
+              Want to create a game instead?{' '}
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="text-blue-600 hover:text-blue-700 font-medium"
+              >
+                Go to Dashboard
+              </button>
+            </p>
+          </div>
+        </motion.div>
+      </div>
+    </div>
   );
 }
