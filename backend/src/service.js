@@ -1,7 +1,7 @@
 import AsyncLock from "async-lock";
 import jwt from "jsonwebtoken";
 import { AccessError, InputError } from "./error.js";
-import redis from './db.js';
+import { redis } from './db.js';
 
 const lock = new AsyncLock();
 const JWT_SECRET = "llamallamaduck";
@@ -15,39 +15,33 @@ const update = async (admins, games, sessions) => {
     await redis.set('admins', JSON.stringify(admins));
     await redis.set('games', JSON.stringify(games));
     await redis.set('sessions', JSON.stringify(sessions));
+    return true;
   } catch (error) {
-    throw new Error("Writing to database failed");
+    console.error("Error writing to Redis:", error);
+    throw new Error("Writing to database failed: " + error.message);
   }
 };
 
 export const save = async () => {
-  const admins = JSON.parse(await redis.get('admins') || '{}');
-  const games = JSON.parse(await redis.get('games') || '{}');
-  const sessions = JSON.parse(await redis.get('sessions') || '{}');
-  await update(admins, games, sessions);
-};
-
-export const reset = async () => {
-  await update({}, {}, {});
-};
-
-// Initialize data if not exists
-const initializeData = async () => {
   try {
-    const admins = await redis.get('admins');
-    const games = await redis.get('games');
-    const sessions = await redis.get('sessions');
-    
-    if (!admins || !games || !sessions) {
-      await update({}, {}, {});
-    }
+    const admins = JSON.parse(await redis.get('admins') || '{}');
+    const games = JSON.parse(await redis.get('games') || '{}');
+    const sessions = JSON.parse(await redis.get('sessions') || '{}');
+    await update(admins, games, sessions);
   } catch (error) {
-    console.log("WARNING: Error initializing data, creating new database");
-    await update({}, {}, {});
+    console.error("Error saving to Redis:", error);
+    throw error;
   }
 };
 
-initializeData();
+export const reset = async () => {
+  try {
+    await update({}, {}, {});
+  } catch (error) {
+    console.error("Error resetting Redis:", error);
+    throw error;
+  }
+};
 
 /***************************************************************
                       Helper Functions

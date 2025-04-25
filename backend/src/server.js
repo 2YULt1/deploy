@@ -3,7 +3,7 @@ import cors from 'cors';
 import express from 'express';
 import fs from 'fs';
 import swaggerUi from 'swagger-ui-express';
-import redis from './db.js';
+import { redis, testConnection, initializeData } from './db.js';
 
 const swaggerDocument = JSON.parse(
   fs.readFileSync(new URL('../swagger.json', import.meta.url))
@@ -33,27 +33,24 @@ import {
 
 const app = express();
 
-// Initialize Redis data
-const initializeData = async () => {
+// 初始化服务器
+const initializeServer = async () => {
   try {
-    const admins = await redis.get('admins');
-    const games = await redis.get('games');
-    const sessions = await redis.get('sessions');
+    // 测试 Redis 连接
+    await testConnection();
     
-    if (!admins || !games || !sessions) {
-      await redis.set('admins', JSON.stringify({}));
-      await redis.set('games', JSON.stringify({}));
-      await redis.set('sessions', JSON.stringify({}));
-    }
+    // 初始化数据
+    await initializeData();
+    
+    console.log('Server initialization completed');
   } catch (error) {
-    console.log("WARNING: Error initializing data, creating new database");
-    await redis.set('admins', JSON.stringify({}));
-    await redis.set('games', JSON.stringify({}));
-    await redis.set('sessions', JSON.stringify({}));
+    console.error('Server initialization failed:', error);
+    process.exit(1);
   }
 };
 
-initializeData();
+// 启动初始化
+initializeServer();
 
 app.use(cors());
 app.use(bodyParser.urlencoded({ extended: true, }));
@@ -62,15 +59,14 @@ app.use(bodyParser.json({ limit: '100mb', }));
 const catchErrors = fn => async (req, res) => {
   try {
     await fn(req, res);
-    save();
   } catch (err) {
     if (err instanceof InputError) {
       res.status(400).send({ error: err.message, });
     } else if (err instanceof AccessError) {
       res.status(403).send({ error: err.message, });
     } else {
-      console.log(err);
-      res.status(500).send({ error: 'A system error ocurred', });
+      console.error("Server error:", err);
+      res.status(500).send({ error: 'A system error occurred', });
     }
   }
 };
