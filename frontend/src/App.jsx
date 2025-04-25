@@ -3,7 +3,7 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import LoginPage from './pages/LoginPage.jsx';
 import RegisterPage from './pages/RegisterPage.jsx';
-import DashboardPage from './pages/DashBoardPage.jsx';
+import DashboardPage from './pages/DashboardPage.jsx';
 import GameEditPage from './pages/GameEditPage.jsx';
 import QuestionEditPage from './pages/QuestionEditPage.jsx';
 import SessionPage from './pages/SessionPage.jsx';
