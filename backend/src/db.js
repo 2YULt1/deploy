@@ -1,14 +1,25 @@
 import { Redis } from '@upstash/redis';
 
-// 验证环境变量
-if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
-  throw new Error('Missing Redis environment variables');
-}
+// 检查是否提供了 Upstash Redis 的环境变量
+const useUpstash = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN;
 
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN,
-});
+let redis;
+
+if (useUpstash) {
+  // 使用 Upstash Redis
+  redis = new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN,
+  });
+  console.log('Using Upstash Redis');
+} else {
+  // 使用本地 Redis
+  redis = new RedisLocal({
+    host: '127.0.0.1', // 本地 Redis 地址
+    port: 6379,        // 本地 Redis 默认端口
+  });
+  console.log('Using local Redis');
+}
 
 // 测试连接
 const testConnection = async () => {
