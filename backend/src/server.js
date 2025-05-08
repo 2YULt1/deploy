@@ -3,13 +3,9 @@ import cors from 'cors';
 import express from 'express';
 import fs from 'fs';
 import swaggerUi from 'swagger-ui-express';
-import { redis, testConnection, initializeData } from './db.js';
 
-const swaggerDocument = JSON.parse(
-  fs.readFileSync(new URL('../swagger.json', import.meta.url))
-);
-
-import { AccessError, InputError, } from './error.js';
+import swaggerDocument from '../swagger.json';
+import { AccessError, InputError, } from './error';
 import {
   assertOwnsGame,
   assertOwnsSession,
@@ -29,28 +25,9 @@ import {
   sessionStatus,
   submitAnswers,
   updateGamesFromAdmin
-} from './service.js';
+} from './service';
 
 const app = express();
-
-// 初始化服务器
-const initializeServer = async () => {
-  try {
-    // 测试 Redis 连接
-    await testConnection();
-    
-    // 初始化数据
-    await initializeData();
-    
-    console.log('Server initialization completed');
-  } catch (error) {
-    console.error('Server initialization failed:', error);
-    process.exit(1);
-  }
-};
-
-// 启动初始化
-initializeServer();
 
 app.use(cors());
 app.use(bodyParser.urlencoded({ extended: true, }));
@@ -59,14 +36,15 @@ app.use(bodyParser.json({ limit: '100mb', }));
 const catchErrors = fn => async (req, res) => {
   try {
     await fn(req, res);
+    save();
   } catch (err) {
     if (err instanceof InputError) {
       res.status(400).send({ error: err.message, });
     } else if (err instanceof AccessError) {
       res.status(403).send({ error: err.message, });
     } else {
-      console.error("Server error:", err);
-      res.status(500).send({ error: 'A system error occurred', });
+      console.log(err);
+      res.status(500).send({ error: 'A system error ocurred', });
     }
   }
 };
@@ -188,8 +166,12 @@ app.get('/', (req, res) => res.redirect('/docs'));
 
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
-// Use Vercel's PORT environment variable or default to 5000
-const port = process.env.PORT || 5000;
+const configData = JSON.parse(fs.readFileSync('../frontend/backend.config.json', 'utf8'));
+const port = 'BACKEND_PORT' in configData ? configData.BACKEND_PORT : 5000;
 
-// Export the Express API
-export default app;
+const server = app.listen(port, () => {
+  console.log(`Backend is now listening on port ${port}!`);
+  console.log(`For API docs, navigate to http://localhost:${port}`);
+});
+
+export default server;
