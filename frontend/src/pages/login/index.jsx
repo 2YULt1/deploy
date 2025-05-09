@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router";
 import React from 'react';
 import { Button, Checkbox, Form, Input, message, Card, Typography } from 'antd';
-import { post } from "../../utils/request";
+import { post } from "../../tools/request";
 
 const { Title, Text } = Typography;
 
