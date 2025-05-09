@@ -2,10 +2,8 @@ import { useParams, useNavigate } from 'react-router';
 import { Button, Form, Input, Select, Checkbox, Modal, Space, Typography, List, message, } from 'antd';
 import { useEffect, useState } from 'react';
 import { put } from '../../tools/request';
-
 const { Title } = Typography;
 const { Option } = Select;
-
 export default function QuestionEditPage() {
   const { gameId, questionId } = useParams();
   const navigate = useNavigate();
@@ -16,7 +14,6 @@ export default function QuestionEditPage() {
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [isAnswerModalOpen, setIsAnswerModalOpen] = useState(false);
   const [newAnswerText, setNewAnswerText] = useState('');
-
   useEffect(() => {
     const gameData = JSON.parse(localStorage.getItem('games')) || [];
     const game = gameData.find(g => g.id === Number(gameId));
@@ -80,7 +77,6 @@ export default function QuestionEditPage() {
     const updatedQuestion = { ...values, answers, correctAnswers };
     const games = JSON.parse(localStorage.getItem('games')) || [];
     const gameIndex = games.findIndex(g => g.id === Number(gameId));
-
     if (gameIndex > -1) {
       games[gameIndex].questions[Number(questionId)] = updatedQuestion;
 
@@ -101,7 +97,6 @@ export default function QuestionEditPage() {
     <div style={{ maxWidth: 700, margin: '0 auto', padding: 24 }}>
       <Button onClick={() => navigate(`/game/${gameId}`)}>← Back to Game</Button>
       <Title level={3} style={{ marginTop: 16 }}>Edit Question</Title>
-
       <Form form={form} layout="vertical">
         <Form.Item name="text" label="Question Text" rules={[{ required: true }]}><Input />
         </Form.Item>
@@ -118,7 +113,6 @@ export default function QuestionEditPage() {
         <Form.Item name="media" label="YouTube URL or Image Link"><Input placeholder="Optional media (YouTube or image URL)" />
         </Form.Item>
       </Form>
-
       <Button
         type="dashed"
         style={{ marginTop: 24 }}
@@ -133,7 +127,6 @@ export default function QuestionEditPage() {
       >
         + Add Answer
       </Button>
-
       <List
         header="Answers"
         dataSource={answers}
@@ -170,12 +163,10 @@ export default function QuestionEditPage() {
           </List.Item>
         )}
       />
-
       <Space style={{ marginTop: 24 }}>
         <Button type="primary" onClick={handleSave}>Save</Button>
         <Button onClick={() => navigate(`/game/${gameId}`)}>Cancel</Button>
       </Space>
-
       <Modal
         open={confirmVisible}
         onOk={handleConfirmSave}
@@ -184,7 +175,6 @@ export default function QuestionEditPage() {
       >
         Are you sure you want to save changes to this question?
       </Modal>
-
       <Modal
         open={isAnswerModalOpen}
         title="Add Answer"
