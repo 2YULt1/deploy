@@ -107,7 +107,7 @@ export default function Login() {
 
           <Form.Item style={{ marginBottom: 0, textAlign: 'center' }}>
             <Text type="secondary">
-              Don’t have an account?
+              Don't have an account?
             </Text>
             <Button
               type="link"
