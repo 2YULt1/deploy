@@ -1,7 +1,7 @@
 import React from 'react';
 import { Form, Input, Button, Typography, message, Card } from 'antd';
 import { useNavigate } from 'react-router';
-import { post } from '../../utils/request';
+import { post } from '../../tools/request';
 
 const { Title, Text } = Typography;
 
