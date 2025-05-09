@@ -197,3 +197,119 @@ export default function GamePage() {
       </Content>
       <Footer style={{ textAlign: 'center' }}>BigBrain ©{new Date().getFullYear()} Created by Jn-B</Footer>
 
+      {/* Edit game info modal */}
+      <Modal
+        title="Edit Game Information"
+        open={editModalOpen}
+        onOk={handleEditGameInfo}
+        onCancel={() => setEditModalOpen(false)}
+        okText="Save"
+      >
+      <Form form={editForm} layout="vertical">
+        <Form.Item
+          label="Game Name"
+          name="name"
+          rules={[{ required: true, message: 'Please enter game name' }]}
+        >
+          <Input />
+        </Form.Item>
+        <Form.Item
+          label="Game Description"
+          name="description"
+          rules={[{ required: true, message: 'Please enter description' }]}
+        >
+          <Input.TextArea rows={3} />
+        </Form.Item>
+        <Form.Item label="Thumbnail Image">
+          <Upload
+            listType="picture-card"
+            showUploadList={false}
+            beforeUpload={() => false}
+            onChange={({ file }) => {
+              const reader = new FileReader();
+              reader.onload = () => setEditThumbnail(reader.result);
+              reader.readAsDataURL(file);
+            }}
+          >
+            {editThumbnail || game?.thumbnail ? (
+              <img
+                src={editThumbnail || game?.thumbnail}
+                alt="thumbnail"
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            ) : (
+              <div>
+                <PlusOutlined />
+                <div style={{ marginTop: 8 }}>Upload</div>
+              </div>
+            )}
+          </Upload>
+
+          {(editThumbnail || game?.thumbnail) && (
+            <Button
+              danger
+              type="link"
+              style={{ marginTop: 8 }}
+              onClick={() => setEditThumbnail('')}
+            >
+              Remove Image
+            </Button>
+          )}
+        </Form.Item>
+
+      </Form>
+    </Modal>
+
+
+      {/* question modal */}
+      <Modal
+        title="Add New Question"
+        open={isModalOpen}
+        onCancel={() => setIsModalOpen(false)}
+        onOk={() => form.submit()}
+        confirmLoading={confirmLoading}
+        okText="Add"
+      >
+        <Form form={form} onFinish={handleAddQuestion} layout="vertical">
+          <Form.Item
+            label="Question Text"
+            name="text"
+            rules={[{ required: true, message: "Please enter the question text" }]}
+          >
+            <Input />
+          </Form.Item>
+
+          <Form.Item
+            label="Question Type"
+            name="questionType"
+            rules={[{ required: true, message: "Please select a question type" }]}
+          >
+            <Select placeholder="Select question type">
+              <Option value="single">Single Choice</Option>
+              <Option value="multiple">Multiple Choice</Option>
+              <Option value="boolean">True / False</Option>
+            </Select>
+          </Form.Item>
+
+          <Form.Item
+            label="Time Limit (seconds)"
+            name="duration"
+            rules={[{ required: true, message: "Please enter the time limit" }]}
+          >
+            <Input type="number" min={1} />
+          </Form.Item>
+
+          <Form.Item
+            label="Points"
+            name="points"
+            rules={[{ required: true, message: "Please enter the score points" }]}
+          >
+            <Input type="number" min={0} />
+          </Form.Item>
+        </Form>
+
+      </Modal>
+
+    </Layout>
+  );
+}
