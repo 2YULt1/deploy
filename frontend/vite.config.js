@@ -13,6 +13,7 @@ export default defineConfig({
     port: 3000,
   },
   build: {
+    outDir: 'build',  // Change output directory from 'dist' to 'build'
     rollupOptions: {
       external: ['@ant-design/icons']
     }
