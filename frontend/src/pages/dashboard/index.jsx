@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Layout, Breadcrumb, Button, theme, message, Modal, Input, Form, Empty, Upload, Image, Card, Popover,Flex } from 'antd';
 import { useNavigate } from 'react-router';
-import { checkLogin } from '../../utils/checkLogin';
+import { checkLogin } from '../../tools/checkLogin';
 import { FireOutlined, PlusOutlined, SettingOutlined, EditOutlined, EllipsisOutlined } from '@ant-design/icons';
-import { put, post,get } from '../../utils/request';
-import { fileToDataUrl } from '../../utils/Url';
+import { put, post,get } from '../../tools/request';
+import { fileToDataUrl } from '../../tools/Url';
 
 const { Header, Content, Footer } = Layout;
 const defaultImageUrl = '/nopicture.png';
@@ -149,6 +149,61 @@ export default function Dashboard() {
     }
   };
 
+  const handleStartGame = async (gameId) => {
+    try {
+      const data = await get('/admin/games');
+      const currentGame = data.games.find(g => g.id === gameId);
+  
+      if (!currentGame) {
+        message.error('Game not found');
+        return;
+      }
+  
+      if (currentGame.active) {
+        message.warning('This game already has an active session.');
+        setSessionId(currentGame.active);  
+        setSessionModalVisible(true);
+        return;
+      }
+  
+      const otherActiveGame = data.games.find(g => g.active && g.id !== gameId);
+      if (otherActiveGame) {
+        message.warning(`Another game (${otherActiveGame.name}) is already active. Please stop it first.`);
+        return;
+      }
+
+      await post(`/admin/game/${gameId}/mutate`, { mutationType: 'START' });
+  
+      const updatedGames = await get('/admin/games');
+      const updatedGame = updatedGames.games.find(g => g.id === gameId);
+  
+      if (updatedGame?.active) {
+        setSessionId(updatedGame.active);
+        setSessionModalVisible(true);
+        setActiveSessions(prev => ({ ...prev, [gameId]: true }));
+        localStorage.setItem(`session_${updatedGame.active}_gameId`, gameId);
+        message.success('Game session started!');
+      } else {
+        throw new Error('Session ID not returned after starting game');
+      }
+  
+    } catch (err) {
+      message.error(err.message || 'Failed to start game session');
+    }
+  };
+  
+  
+  const handleStopGame = async (gameId) => {
+    try {
+      await post(`/admin/game/${gameId}/mutate`, { mutationType: 'END' });
+      setActiveSessions(prev => ({ ...prev, [gameId]: false }));
+      setStoppedGameId(gameId);
+      setStopModalVisible(true);
+      message.success('Game session ended');
+    } catch (err) {
+      message.error('Failed to end game session');
+    }
+  };
   
   
   return (
@@ -272,6 +327,19 @@ export default function Dashboard() {
                               Delete
                             </Button>
                           </Popover>
+                    
+                          <Button
+                            type="link"
+                            icon={<FireOutlined />}
+                            style={{ padding: 0 }}
+                            onClick={() => {
+                              activeSessions[game.id]
+                                ? handleStopGame(game.id)
+                                : handleStartGame(game.id);
+                            }}
+                          >
+                            {activeSessions[game.id] ? 'Stop' : 'Start'}
+                          </Button>
                         </div>
                     
                         {/*  Manage Game button */}
